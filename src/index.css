@@ -1,0 +1,46 @@
+/* src/index.css */
+
+/* 1. Reset margins and set the main theme background */
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  background-color: #6c5ce7; /* This matches the Send Anywhere purple */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 2. Optional: Custom scrollbar to make it look professional */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #5a4acf;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #a29bfe;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #efefef;
+}
+
+/* 3. Animation for the cards popping in */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bg-white {
+  animation: slideUp 0.5s ease-out forwards;
+}
