@@ -9,14 +9,13 @@ function App() {
   const [progress, setProgress] = useState(0);
   const [remoteFiles, setRemoteFiles] = useState([]);
 
-  // Ensure this matches your ngrok URL exactly
-  const API_BASE = "https://sheryl-demanding-monotropically.ngrok-free.dev";
+  // This will use your Render URL once set in Vercel Environment Variables
+  const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   const fetchMetadata = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/metadata/${inputKey}`, {
-        headers: { "ngrok-skip-browser-warning": "69420" }
-      });
+      // ngrok headers removed for production
+      const res = await axios.get(`${API_BASE}/metadata/${inputKey}`);
       setRemoteFiles(res.data.files);
     } catch (err) {
       alert("Invalid Key or Files Expired");
@@ -40,14 +39,13 @@ function App() {
 
     try {
       const res = await axios.post(`${API_BASE}/upload`, formData, {
-        headers: { "ngrok-skip-browser-warning": "69420" },
         onUploadProgress: (p) => setProgress(Math.round((p.loaded * 100) / p.total))
       });
       setUploadKey(res.data.key);
       setProgress(100);
     } catch (err) {
       console.error(err);
-      alert("Error: Ensure your Node server is running and Ngrok is active!");
+      alert("Error: Check if the backend server is awake!");
       setProgress(0);
     }
   };
@@ -154,7 +152,6 @@ function App() {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
