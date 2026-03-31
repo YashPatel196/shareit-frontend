@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Plus, Download, Send, Files } from 'lucide-react';
+import { Plus, Download, Send, Files, QrCode } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 function App() {
   const [files, setFiles] = useState([]);
@@ -11,6 +12,15 @@ function App() {
 
   // This will use your Render URL once set in Vercel Environment Variables
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
+  // Logic to handle auto-fill if a QR code is scanned (via URL param)
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const key = urlParams.get('key');
+    if (key) {
+      setInputKey(key);
+    }
+  }, []);
 
   const fetchMetadata = async () => {
     try {
@@ -93,10 +103,18 @@ function App() {
             {progress > 0 && progress < 100 ? `Uploading ${progress}%` : "Send"}
           </button>
 
+          {/* UPDATED: QR CODE SECTION */}
           {uploadKey && (
-            <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100 text-center animate-bounce">
-              <span className="text-[10px] text-green-600 font-black uppercase tracking-widest">Your Key</span>
-              <p className="text-4xl font-mono font-bold text-green-700">{uploadKey}</p>
+            <div className="mt-6 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in duration-300">
+              <span className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mb-3">Scan to Receive</span>
+              <div className="bg-white p-3 rounded-xl shadow-sm">
+                <QRCodeSVG 
+                  value={`${window.location.origin}?key=${uploadKey}`} 
+                  size={140}
+                  level={"H"}
+                />
+              </div>
+              <p className="mt-4 text-4xl font-mono font-bold text-green-600">{uploadKey}</p>
             </div>
           )}
         </div>
@@ -105,14 +123,22 @@ function App() {
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full md:w-96">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Receive</h2>
           <div className="space-y-4">
-            <input 
-              type="text" 
-              placeholder="Input key" 
-              maxLength="6"
-              className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl py-5 text-center text-3xl font-mono font-bold text-gray-700 focus:border-indigo-400 outline-none"
-              value={inputKey}
-              onChange={(e) => setInputKey(e.target.value)}
-            />
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Input key" 
+                maxLength="6"
+                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl py-5 text-center text-3xl font-mono font-bold text-gray-700 focus:border-indigo-400 outline-none"
+                value={inputKey}
+                onChange={(e) => setInputKey(e.target.value)}
+              />
+              {/* Optional: Visual indicator that key is recognized */}
+              {inputKey.length === 6 && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+                  <QrCode size={20} />
+                </div>
+              )}
+            </div>
             
             {remoteFiles.length === 0 ? (
               <button 
