@@ -15,6 +15,12 @@ function App() {
 
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const key = urlParams.get('key');
+    if (key) setInputKey(key);
+  }, []);
+
   const fetchMetadata = async () => {
     try {
       const res = await axios.get(`${API_BASE}/metadata/${inputKey}`);
