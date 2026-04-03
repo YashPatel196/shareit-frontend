@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Download, Send, Files, QrCode, Copy } from 'lucide-react';
+import { Plus, Download, Send, Copy } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 function App() {
