@@ -1,186 +1,156 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Download, Send, Files, QrCode } from 'lucide-react';
+import { Plus, Download, Send, Files, QrCode, Copy } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 function App() {
+  const [mode, setMode] = useState('file');
   const [files, setFiles] = useState([]);
+  const [textContent, setTextContent] = useState('');
   const [uploadKey, setUploadKey] = useState('');
   const [inputKey, setInputKey] = useState('');
   const [progress, setProgress] = useState(0);
-  const [remoteFiles, setRemoteFiles] = useState([]);
+  const [remoteData, setRemoteData] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // This will use your Render URL once set in Vercel Environment Variables
   const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
-
-  // Logic to handle auto-fill if a QR code is scanned (via URL param)
-  React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const key = urlParams.get('key');
-    if (key) {
-      setInputKey(key);
-    }
-  }, []);
 
   const fetchMetadata = async () => {
     try {
-      // ngrok headers removed for production
       const res = await axios.get(`${API_BASE}/metadata/${inputKey}`);
-      setRemoteFiles(res.data.files);
+      setRemoteData(res.data);
     } catch (err) {
-      alert("Invalid Key or Files Expired");
-      setRemoteFiles([]);
+      alert("Invalid Key");
     }
   };
 
-  const onFileChange = (e) => {
-    setFiles(Array.from(e.target.files));
-    setUploadKey('');
-    setProgress(0);
+  // Add these helper functions inside your App component
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setFiles(Array.from(e.dataTransfer.files));
+      e.dataTransfer.clearData();
+    }
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) return;
     const formData = new FormData();
-    
-    files.forEach(file => {
-      formData.append('files', file); 
-    });
-
+    files.forEach(f => formData.append('files', f));
     try {
       const res = await axios.post(`${API_BASE}/upload`, formData, {
         onUploadProgress: (p) => setProgress(Math.round((p.loaded * 100) / p.total))
       });
       setUploadKey(res.data.key);
-      setProgress(100);
-    } catch (err) {
-      console.error(err);
-      alert("Error: Check if the backend server is awake!");
-      setProgress(0);
-    }
+    } catch (err) { alert("Upload failed"); }
+  };
+
+  const handleTextShare = async () => {
+    try {
+      const res = await axios.post(`${API_BASE}/upload-text`, { text: textContent });
+      setUploadKey(res.data.key);
+    } catch (err) { alert("Failed to share text"); }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#6c5ce7]">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#6c5ce7] font-sans text-gray-800">
       <div className="mb-10 text-center text-white">
-        <h1 className="text-4xl font-extrabold tracking-tight">ShareIt</h1>
-        <p className="opacity-80">Instant, multi-file sharing</p>
+        <h1 className="text-4xl font-extrabold">ShareIt</h1>
+        <p className="opacity-80">Instant File & Text Sharing</p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl justify-center">
-        
+      <div className="flex flex-col md:flex-row gap-8 w-full max-w-4xl">
         {/* SEND CARD */}
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full md:w-96">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Send</h2>
-          
-          <label className="border-4 border-dashed border-gray-100 rounded-2xl h-52 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-all">
-            {files.length > 0 ? (
-              <div className="text-center p-4">
-                <Files size={48} className="text-indigo-500 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-gray-700">
-                  {files.length} {files.length === 1 ? 'file' : 'files'} selected
-                </p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="bg-indigo-50 p-4 rounded-full inline-block">
-                  <Plus size={32} className="text-indigo-500" />
-                </div>
-                <p className="mt-3 text-sm text-gray-400 font-medium">Add Files</p>
-              </div>
-            )}
-            <input type="file" onChange={onFileChange} hidden multiple />
-          </label>
+        <div className="bg-white rounded-3xl shadow-2xl p-8 flex-1">
+          <div className="flex border-b mb-6">
+            <button onClick={() => setMode('file')} className={`flex-1 pb-2 font-bold ${mode === 'file' ? 'border-b-4 border-indigo-500 text-indigo-600' : 'text-gray-400'}`}>Files</button>
+            <button onClick={() => setMode('text')} className={`flex-1 pb-2 font-bold ${mode === 'text' ? 'border-b-4 border-indigo-500 text-indigo-600' : 'text-gray-400'}`}>Text</button>
+          </div>
 
-          <button 
-            onClick={handleUpload}
-            disabled={files.length === 0 || (progress > 0 && progress < 100)}
-            className={`w-full mt-6 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
-              files.length === 0 ? 'bg-gray-100 text-gray-400' : 'bg-indigo-600 text-white hover:bg-indigo-700'
-            }`}
-          >
-            <Send size={18} /> 
-            {progress > 0 && progress < 100 ? `Uploading ${progress}%` : "Send"}
-          </button>
+          {mode === 'file' ? (
+            <div className="space-y-4">
+              <label 
+                onDragOver={(e) => e.preventDefault()}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`
+                  border-4 border-dashed rounded-2xl h-48 flex flex-col items-center justify-center cursor-pointer transition-all duration-300
+                  /* This part handles the glow/color when dragging a file over */
+                  ${isDragging 
+                    ? 'border-indigo-500 bg-indigo-50 shadow-[0_0_20px_rgba(99,102,241,0.6)] scale-[1.02]' 
+                    : 'border-gray-100'
+                  }
+                  /* This part handles the color change when just hovering with the mouse (no file) */
+                  hover:border-indigo-400 hover:bg-indigo-50 hover:shadow-md
+                `}
+              >
+                <Plus className={`mb-2 transition-transform ${isDragging ? 'scale-125 text-indigo-600' : 'text-indigo-500'}`} />
+                <span className={`text-sm font-medium ${isDragging ? 'text-indigo-600' : 'text-gray-400'}`}>
+                  {files.length > 0 ? `${files.length} files selected` : 'Add or Drop Files'}
+                </span>
+                <input type="file" hidden multiple onChange={(e) => setFiles(Array.from(e.target.files))} />
+              </label>
+              <button onClick={handleUpload} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold">Send Files</button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <textarea value={textContent} onChange={(e) => setTextContent(e.target.value)} className="w-full h-48 p-4 bg-gray-50 rounded-2xl outline-none resize-none border-2 border-dashed" placeholder="Paste text or code..." />
+              <button onClick={handleTextShare} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold">Share Text</button>
+            </div>
+          )}
 
-          {/* UPDATED: QR CODE SECTION */}
           {uploadKey && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col items-center animate-in zoom-in duration-300">
-              <span className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mb-3">Scan to Receive</span>
-              <div className="bg-white p-3 rounded-xl shadow-sm">
-                <QRCodeSVG 
-                  value={`${window.location.origin}?key=${uploadKey}`} 
-                  size={140}
-                  level={"H"}
-                />
-              </div>
-              <p className="mt-4 text-4xl font-mono font-bold text-green-600">{uploadKey}</p>
+            <div className="mt-6 p-4 bg-gray-50 rounded-2xl text-center animate-in zoom-in">
+              <QRCodeSVG value={`${window.location.origin}?key=${uploadKey}`} size={120} className="mx-auto mb-2" />
+              <p className="text-3xl font-mono font-bold text-green-600">{uploadKey}</p>
             </div>
           )}
         </div>
 
         {/* RECEIVE CARD */}
-        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full md:w-96">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Receive</h2>
-          <div className="space-y-4">
-            <div className="relative">
-              <input 
-                type="text" 
-                placeholder="Input key" 
-                maxLength="6"
-                className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl py-5 text-center text-3xl font-mono font-bold text-gray-700 focus:border-indigo-400 outline-none"
-                value={inputKey}
-                onChange={(e) => setInputKey(e.target.value)}
-              />
-              {/* Optional: Visual indicator that key is recognized */}
-              {inputKey.length === 6 && (
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
-                  <QrCode size={20} />
+        <div className="bg-white rounded-3xl shadow-2xl p-8 flex-1">
+          <h2 className="text-2xl font-bold mb-6">Receive</h2>
+          <input type="text" value={inputKey} onChange={(e) => setInputKey(e.target.value)} className="w-full bg-gray-50 border-2 rounded-xl py-4 text-center text-3xl font-mono mb-4 outline-none focus:border-indigo-400" placeholder="000000" />
+          
+          {!remoteData ? (
+            <button onClick={fetchMetadata} className="w-full py-4 bg-pink-500 text-white rounded-xl font-bold">Check Key</button>
+          ) : (
+            <div className="space-y-4">
+              {remoteData.type === 'text' ? (
+                <div className="p-4 bg-gray-50 rounded-xl">
+                  <pre className="text-sm overflow-x-auto whitespace-pre-wrap mb-2">{remoteData.content}</pre>
+                  <button onClick={() => navigator.clipboard.writeText(remoteData.content)} className="flex items-center gap-2 text-indigo-600 text-xs font-bold"><Copy size={14}/> Copy</button>
                 </div>
+              ) : (
+                <>
+                  <button onClick={() => window.location.href = `${API_BASE}/download/${inputKey}`} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold flex justify-center gap-2"><Download size={18}/> ZIP</button>
+                  {remoteData.files.map(f => (
+                    <div key={f.index} className="flex justify-between bg-gray-50 p-2 rounded text-sm">
+                      <span>{f.name}</span>
+                      <Download size={14} className="cursor-pointer" onClick={() => window.location.href=`${API_BASE}/download/${inputKey}?index=${f.index}`} />
+                    </div>
+                  ))}
+                </>
               )}
+              <button onClick={() => setRemoteData(null)} className="text-xs text-gray-400 underline w-full">Clear</button>
             </div>
-            
-            {remoteFiles.length === 0 ? (
-              <button 
-                onClick={fetchMetadata}
-                disabled={inputKey.length < 6}
-                className="w-full py-4 rounded-xl font-bold bg-pink-500 text-white hover:bg-pink-600 disabled:bg-gray-100 disabled:text-gray-400"
-              >
-                Check Key
-              </button>
-            ) : (
-              <div className="space-y-4 animate-in fade-in duration-500">
-                <button 
-                  onClick={() => window.location.href = `${API_BASE}/download/${inputKey}`}
-                  className="w-full py-3 rounded-xl font-bold bg-indigo-600 text-white flex items-center justify-center gap-2"
-                >
-                  <Download size={16} /> Download All (ZIP)
-                </button>
-                
-                <div className="border-t pt-4">
-                  <p className="text-xs font-bold text-gray-400 mb-2 uppercase">Individual Files</p>
-                  <div className="max-h-40 overflow-y-auto space-y-2 custom-scrollbar">
-                    {remoteFiles.map((file) => (
-                      <div key={file.index} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg">
-                        <span className="text-sm truncate w-40 text-gray-700">{file.name}</span>
-                        <button 
-                          onClick={() => window.location.href = `${API_BASE}/download/${inputKey}?index=${file.index}`}
-                          className="text-indigo-600 hover:text-indigo-800"
-                        >
-                          <Download size={16} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <button onClick={() => {setRemoteFiles([]); setInputKey('');}} className="text-xs text-gray-400 underline w-full">Cancel</button>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
 export default App;
